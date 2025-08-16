@@ -24,7 +24,7 @@ if st.session_state.page == "home":
         """
         Discover trends, analyze patterns, and explore salaries across different roles, 
         experience levels, and company sizes in the data science industry.  
-        
+                                                            -Made by Chirag Sharma
         🚀 Click below to start your journey!
         """
     )
