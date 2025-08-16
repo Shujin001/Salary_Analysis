@@ -1,4 +1,3 @@
-#Importing Libraries
 import streamlit as st
 import pandas as pd
 import seaborn as sns
@@ -10,222 +9,139 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 import numpy as np
 
-# Page config
+# Set page config
 st.set_page_config(page_title="Data Science Salary Analysis", layout="wide")
-st.title("Data Science Jobs Salary Analysis")
 
-# Load dataset automatically
-try:
-    df = pd.read_csv("data/salaries.csv")
-except FileNotFoundError:
-    st.error("'salaries.csv' not found in current directory.")
-    st.stop()
+# --- SESSION STATE FOR NAVIGATION ---
+if "page" not in st.session_state:
+    st.session_state.page = "home"  # default page
 
-# Map categorical codes to readable values
-df['experience_level'] = df['experience_level'].map({
-    'EN': 'Entry-level', 'MI': 'Mid-level', 'SE': 'Senior-level', 'EX': 'Executive-level'
-})
-df['employment_type'] = df['employment_type'].map({
-    'PT': 'Part-time', 'FT': 'Full-time', 'CT': 'Contract', 'FL': 'Freelance'
-})
-df['company_size'] = df['company_size'].map({
-    'S': 'Small', 'M': 'Medium', 'L': 'Large'
-})
+# --- HOME PAGE ---
+if st.session_state.page == "home":
+    st.title("💼 Data Science Jobs Salary Analysis")
+    st.subheader("Welcome to the Salary Insights Dashboard 📊")
+    st.markdown(
+        """
+        Discover trends, analyze patterns, and explore salaries across different roles, 
+        experience levels, and company sizes in the data science industry.  
+        
+        🚀 Click below to start your journey!
+        """
+    )
+    
+    if st.button("👉 Start Analysis"):
+        st.session_state.page = "analysis"
+        st.rerun()
 
-# Preview
-st.subheader("Dataset Preview")
-st.dataframe(df.head())
+# --- ANALYSIS PAGE ---
+elif st.session_state.page == "analysis":
+    # Load dataset
+    try:
+        df = pd.read_csv("data/salaries.csv")
+    except FileNotFoundError:
+        st.error("Error: 'salaries.csv' not found in 'data' directory.")
+        st.stop()
 
-# Salary by Experience
-st.subheader("Salary Distribution by Experience Level")
-fig1, ax1 = plt.subplots()
-sns.boxplot(x='experience_level', y='salary_in_usd', data=df, ax=ax1)
-st.pyplot(fig1)
+    # Map categorical codes to readable values
+    df['experience_level'] = df['experience_level'].map({
+        'EN': 'Entry-level', 'MI': 'Mid-level', 'SE': 'Senior-level', 'EX': 'Executive-level'
+    })
+    df['employment_type'] = df['employment_type'].map({
+        'PT': 'Part-time', 'FT': 'Full-time', 'CT': 'Contract', 'FL': 'Freelance'
+    })
+    df['company_size'] = df['company_size'].map({
+        'S': 'Small', 'M': 'Medium', 'L': 'Large'
+    })
 
-# Top Job Titles
-st.subheader("Average Salary for Top 10 Job Titles")
-top_titles = df['job_title'].value_counts().head(10).index
-avg_salary_by_title = df[df['job_title'].isin(top_titles)].groupby('job_title')['salary_in_usd'].mean().sort_values()
-fig2, ax2 = plt.subplots()
-avg_salary_by_title.plot(kind='barh', ax=ax2)
-st.pyplot(fig2)
+    # Sidebar filters
+    st.expander("🔎 Filters")
+    min_salary = int(df['salary_in_usd'].min())
+    max_salary = int(df['salary_in_usd'].max())
+    salary_range = st.sidebar.slider("Salary Range (USD)", min_salary, max_salary, (min_salary, max_salary), step=1000)
 
-# Employment Type
-st.subheader("Salary by Employment Type")
-fig3, ax3 = plt.subplots()
-sns.boxplot(x='employment_type', y='salary_in_usd', data=df, ax=ax3)
-st.pyplot(fig3)
+    experience_options = sorted(df['experience_level'].unique().tolist())
+    selected_experience = st.sidebar.multiselect("Experience Level", experience_options, default=experience_options)
 
-# Company Size
-st.subheader("Salary by Company Size")
-fig4, ax4 = plt.subplots()
-sns.barplot(x='company_size', y='salary_in_usd', data=df, ax=ax4)
-st.pyplot(fig4)
+    employment_options = sorted(df['employment_type'].unique().tolist())
+    selected_employment = st.sidebar.multiselect("Employment Type", employment_options, default=employment_options)
 
-# Model section
-df_encoded = df.copy()
-le = LabelEncoder()
-for col in ['experience_level', 'employment_type', 'company_size', 'company_location', 'employee_residence', 'job_title']:
-    df_encoded[col] = le.fit_transform(df_encoded[col])
+    company_options = sorted(df['company_size'].unique().tolist())
+    selected_company = st.sidebar.multiselect("Company Size", company_options, default=company_options)
 
-X = df_encoded[['experience_level', 'employment_type', 'company_size', 'remote_ratio']]
-y = df_encoded['salary_in_usd']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Apply filters
+    df_filtered = df[
+        (df['salary_in_usd'] >= salary_range[0]) &
+        (df['salary_in_usd'] <= salary_range[1]) &
+        (df['experience_level'].isin(selected_experience)) &
+        (df['employment_type'].isin(selected_employment)) &
+        (df['company_size'].isin(selected_company))
+    ].copy()
 
-# Linear Regression
-lr = LinearRegression()
-lr.fit(X_train, y_train)
-y_pred_lr = lr.predict(X_test)
-lr_r2 = r2_score(y_test, y_pred_lr)
-lr_rmse = np.sqrt(mean_squared_error(y_test, y_pred_lr))
+    if df_filtered.empty:
+        st.warning("No data available for the selected filters.")
 
-# Random Forest
-rf = RandomForestRegressor(random_state=42)
-rf.fit(X_train, y_train)
-y_pred_rf = rf.predict(X_test)
-rf_r2 = r2_score(y_test, y_pred_rf)
-rf_rmse = np.sqrt(mean_squared_error(y_test, y_pred_rf))
+    sns.set_theme(style="whitegrid")
 
-# Model Output
-st.subheader("Model Performance")
-st.write("**Linear Regression**")
-st.write(f"R² Score: {lr_r2:.3f}")
-st.write(f"RMSE: {lr_rmse:.2f}")
+    # Tabs for sections
+    tab1, tab2, tab3 = st.tabs(["🗒️ Dataset & Info", "📈 Visual Analysis", "🤖 ML Models"])
 
-st.write("**Random Forest Regressor**")
-st.write(f"R² Score: {rf_r2:.3f}")
-st.write(f"RMSE: {rf_rmse:.2f}")
+    with tab1:
+        st.header("📋 Dataset Overview")
+        st.markdown(f"**Total Rows:** {df_filtered.shape[0]}    **Columns:** {df_filtered.shape[1]}")
+        st.subheader("🗂️ Data Preview")
+        st.dataframe(df_filtered.head())
 
-# Feature Importance
-importances = rf.feature_importances_
-importance_df = pd.DataFrame({'Feature': X.columns, 'Importance': importances}).sort_values(by='Importance', ascending=False)
+        with st.expander("ℹ️ Column Info"):
+            st.write(df_filtered.dtypes)
+        with st.expander("📊 Descriptive Statistics"):
+            st.write(df_filtered.describe())
 
-st.subheader("Feature Importance (Random Forest)")
-fig5, ax5 = plt.subplots()
-sns.barplot(data=importance_df, x='Importance', y='Feature', ax=ax5)
-st.pyplot(fig5)
+    with tab2:
+        st.header("📊 Salary Visualizations")
 
+        # Salary Distribution
+        st.subheader("💰 Salary Distribution")
+        fig_dist, ax_dist = plt.subplots(figsize=(6,4))
+        sns.histplot(df_filtered['salary_in_usd'], kde=True, color='skyblue', ax=ax_dist)
+        st.pyplot(fig_dist)
 
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("💼 Salary by Experience Level")
+            fig_exp, ax_exp = plt.subplots(figsize=(6,4))
+            sns.boxplot(x='experience_level', y='salary_in_usd', data=df_filtered, palette='pastel', ax=ax_exp)
+            st.pyplot(fig_exp)
 
+            st.subheader("🛠️ Salary by Employment Type")
+            fig_emp, ax_emp = plt.subplots(figsize=(6,4))
+            sns.boxplot(x='employment_type', y='salary_in_usd', data=df_filtered, palette='Set2', ax=ax_emp)
+            st.pyplot(fig_emp)
 
-#def load_data(data_path:str):
-#    return df
+        with col2:
+            st.subheader("🏢 Salary by Company Size")
+            fig_size, ax_size = plt.subplots(figsize=(6,4))
+            sns.barplot(x='company_size', y='salary_in_usd', data=df_filtered, palette='coolwarm', ax=ax_size)
+            st.pyplot(fig_size)
 
-#df = load_data("data/salaries.csv")
-#print(df.columns)
+            st.subheader("🚀 Top 10 Job Titles (Avg Salary)")
+            top_titles = df_filtered['job_title'].value_counts().head(10).index
+            avg_salary_by_title = df_filtered[df_filtered['job_title'].isin(top_titles)] \
+                                    .groupby('job_title')['salary_in_usd'].mean().sort_values()
+            fig_title, ax_title = plt.subplots(figsize=(6,4))
+            avg_salary_by_title.plot(kind='barh', color='seagreen', ax=ax_title)
+            st.pyplot(fig_title)
 
-st.title("Data Dashboard")
-st.markdown("## Sample Data")
-st.write(df.head())
+    with tab3:
+        st.header("🤖 Model Performance")
 
-#st.write("Python")
-#st.write(["Python", "JS", "Java"])
-#st.divider()
-#st.dataframe(df.head())
+        df_model = df_filtered.copy()
+        le = LabelEncoder()
+        for col in ['experience_level', 'employment_type', 'company_size', 'company_location', 'employee_residence', 'job_title']:
+            df_model[col] = le.fit_transform(df_model[col])
+        df_model = df_model.dropna(subset=['experience_level','employment_type','company_size','remote_ratio','salary_in_usd'])
 
-#st.markdown("##### Machine Learning Engineer")
-def filter_job_title(df, column_value:str):
-    custom_filter = df["job_title"] == column_value
-    filtered_df = df[custom_filter]
-    return filtered_df
-
-#selected_column_value = "Machine Learning Engineer"
-selected_column_value = st.text_input("Job Title","Machine Learning Engineer")
-if selected_column_value:
-    filtered_df = filter_job_title(df, selected_column_value)
-    st.dataframe(filtered_df)
-
-#SideBar
-    #st.title("Average Salary")
-#with st.sidebar:
-   # st.subheader("Slider Selector:")
-    #salary_range = st.slider("Select average salary range:", min_value= df["salary_in_usd"].min(), max_value=df["salary_in_usd"].max(), value=(0, 100000), step=10000)
-
-    #st.write("Selected range:", salary_range)
-#if "salary_in_usd" in df.columns:
-    #salary_filtered_df = df[
-        #(df["salary_in_usd"] >= salary_range[0]) & 
-        #(df["salary_in_usd"] <= salary_range[1])
-    #]
-    #st.markdown("### Filtered Average Salary")
-    #st.dataframe(salary_filtered_df)
-#else:
-    #st.error("Column 'salary_in_usd' not found in the dataset.")
-
-
-
-#option = st.selectbox()
-
-
-# Clean up
-df['experience_level'] = df['experience_level'].map({
-    'EN': 'Entry-level', 'MI': 'Mid-level', 'SE': 'Senior-level', 'EX': 'Executive-level'
-})
-df['employment_type'] = df['employment_type'].map({
-    'PT': 'Part-time', 'FT': 'Full-time', 'CT': 'Contract', 'FL': 'Freelance'
-})
-df['company_size'] = df['company_size'].map({
-    'S': 'Small', 'M': 'Medium', 'L': 'Large'
-})
-
-# Tabs
-tab1, tab2, tab3 = st.tabs(["Dataset & Info", "Visual Analysis", "ML Models"])
-
-with tab1:
-    st.subheader("Dataset Preview")
-    st.dataframe(df.head())
-
-    st.subheader("Basic Info")
-    st.write(f"Total rows: {df.shape[0]}, Columns: {df.shape[1]}")
-    st.write("### Column Info")
-    st.write(df.dtypes)
-
-    st.subheader("Descriptive Statistics")
-    st.write(df.describe())
-
-with tab2:
-    col1, col2, col3 = st.tabs(["Salary Distribution", "Job Title Salary", "Average Salary"])
-
-    with col1:
-        st.subheader("Salary Distribution")
-        fig, ax = plt.subplots()
-        sns.histplot(df['salary_in_usd'], kde=True, ax=ax, color='skyblue')
-        ax.set_xlabel("Salary (USD)")
-        ax.set_ylabel("Frequency")
-        st.pyplot(fig)
-
-    with col2:
-        st.subheader("Average Salary by Top 10 Job Titles")
-        top_titles = df['job_title'].value_counts().head(10).index
-        avg_salary_by_title = df[df['job_title'].isin(top_titles)] \
-                                .groupby('job_title')['salary_in_usd'].mean().sort_values()
-        fig2, ax2 = plt.subplots()
-        avg_salary_by_title.plot(kind='barh', ax=ax2)
-        st.pyplot(fig2)
-
-    with col3:
-        st.subheader("Average Salary by Country")
-        avg_salary_country = df.groupby('company_location')['salary_in_usd'].mean().sort_values(ascending=False)
-        st.bar_chart(avg_salary_country)
-
-with tab3:
-    col1, col2, col3 = st.tabs(["Salary Prediction", "Remote Work vs Salary", "Job Filter"])
-    with col1:
-        st.subheader("ML Model: Salary Prediction")
-
-        df_encoded = df.copy()
-
-        for col in ['experience_level', 'employment_type', 'company_size',
-                    'company_location', 'employee_residence', 'job_title']:
-            le = LabelEncoder()
-            df_encoded[col] = le.fit_transform(df_encoded[col])
-
-        # Drop rows with NaNs in relevant columns
-        df_encoded = df_encoded.dropna(subset=['experience_level', 'employment_type', 'company_size', 'remote_ratio', 'salary_in_usd'])
-
-        X = df_encoded[['experience_level', 'employment_type', 'company_size', 'remote_ratio']]
-        y = df_encoded['salary_in_usd']
-
+        X = df_model[['experience_level', 'employment_type', 'company_size', 'remote_ratio']]
+        y = df_model['salary_in_usd']
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         lr = LinearRegression()
@@ -236,47 +152,27 @@ with tab3:
         rf.fit(X_train, y_train)
         y_pred_rf = rf.predict(X_test)
 
-        from sklearn.metrics import mean_squared_error, r2_score
+        lr_r2 = r2_score(y_test, y_pred_lr)
+        lr_rmse = np.sqrt(mean_squared_error(y_test, y_pred_lr))
+        rf_r2 = r2_score(y_test, y_pred_rf)
+        rf_rmse = np.sqrt(mean_squared_error(y_test, y_pred_rf))
 
-        st.markdown("#### Linear Regression Results")
-        st.write(f"R² Score: {r2_score(y_test, y_pred_lr):.3f}")
-        st.write(f"RMSE: {mean_squared_error(y_test, y_pred_lr, squared=False):.2f}")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Linear Regression")
+            st.write(f"R² Score: **{lr_r2:.3f}**")
+            st.write(f"RMSE: **{lr_rmse:.2f}**")
+        with col2:
+            st.subheader("Random Forest")
+            st.write(f"R² Score: **{rf_r2:.3f}**")
+            st.write(f"RMSE: **{rf_rmse:.2f}**")
 
-        st.markdown("#### Random Forest Results")
-        st.write(f"R² Score: {r2_score(y_test, y_pred_rf):.3f}")
-        st.write(f"RMSE: {mean_squared_error(y_test, y_pred_rf, squared=False):.2f}")
+        st.subheader("🌟 Feature Importance (Random Forest)")
+        importance_df = pd.DataFrame({'Feature': X.columns, 'Importance': rf.feature_importances_}).sort_values(by='Importance', ascending=False)
+        fig_imp, ax_imp = plt.subplots(figsize=(6,4))
+        sns.barplot(x='Importance', y='Feature', data=importance_df, palette='magma', ax=ax_imp)
+        st.pyplot(fig_imp)
 
-        st.subheader("🔍 Feature Importance (Random Forest)")
-        importance_df = pd.DataFrame({
-            'Feature': X.columns,
-            'Importance': rf.feature_importances_
-        }).sort_values(by='Importance', ascending=False)
-
-
-        fig5, ax5 = plt.subplots()
-        sns.barplot(data=importance_df, x='Importance', y='Feature', ax=ax5)
-        st.pyplot(fig5)
-    with col2:
-        st.subheader("Remote Work vs Salary")
-        remote_map = {0: 'No Remote', 50: 'Hybrid', 100: 'Fully Remote'}
-        df['remote_status'] = df['remote_ratio'].map(remote_map)
-
-        fig, ax = plt.subplots()
-        sns.boxplot(x='remote_status', y='salary_in_usd', data=df, palette='coolwarm', ax=ax)
-        st.pyplot(fig)
-    with col3:
-        job_title = df['job_title'].dropna().unique().tolist()
-        def filter_job_title(df, column_value:str):
-            custom_filter = df["job_title"] == column_value
-            filtered_df = df[custom_filter]
-            return filtered_df
-        selected_column_value = st.selectbox(
-            "Job Title",
-            job_title,
-            index=None,
-            placeholder="Select a saved title or enter a new one",
-        )
-        if selected_column_value:
-            salary_filtered_df = filter_job_title(df, selected_column_value)
-            st.dataframe(salary_filtered_df)
-    
+    if st.sidebar.button("⬅️ Back to Home"):
+        st.session_state.page = "home"
+        st.rerun()
