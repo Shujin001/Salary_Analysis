@@ -6,7 +6,7 @@
 
 ## Setup Instructions
 
-**Run** the `requirement.txt`:
+**Run** the `requirements.txt`:
 
 ```bash
 pip install -r requirements.txt
