@@ -13,4 +13,4 @@ pip install -r requirements.txt
 ```
 This will install all the required dependencies for the optimal execution of the code
 
-### Made to Analyse the Salaries for Data Science Job
+### _Made to Analyse the Salaries for Data Science Job_
