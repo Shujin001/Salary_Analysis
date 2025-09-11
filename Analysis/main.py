@@ -8,19 +8,35 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 import numpy as np
+import time
 
-# Set page config
+# --- PAGE CONFIG ---
 st.set_page_config(page_title="Data Science Salary Analysis", layout="wide")
 
 # --- SESSION STATE FOR NAVIGATION ---
 if "page" not in st.session_state:
     st.session_state.page = "home"  # default page
 
+# --- TYPEWRITER FUNCTION ---  # <-- ADDED
+def typewriter_text(text, placeholder, delay=0.03):  # <-- ADDED
+    typed = ""  # <-- ADDED
+    for char in text:  # <-- ADDED
+        typed += char  # <-- ADDED
+        placeholder.markdown(typed)  # <-- ADDED
+        time.sleep(delay)  # <-- ADDED
+
 # --- HOME PAGE ---
 if st.session_state.page == "home":
-    st.title("💼 Data Science Jobs Salary Analysis")
-    st.subheader("Welcome to the Salary Insights Dashboard 📊")
-    st.markdown(
+    # --- PLACEHOLDERS FOR TYPEWRITER ---  # <-- ADDED
+    title_placeholder = st.empty()  # <-- ADDED
+    subtitle_placeholder = st.empty()  # <-- ADDED
+    markdown_placeholder = st.empty()  # <-- ADDED
+    
+    # --- TYPEWRITER TEXT ---  # <-- ADDED
+    typewriter_text("💼 Data Science Jobs Salary Analysis", title_placeholder)  # <-- ADDED
+    typewriter_text("Welcome to the Salary Insights Dashboard 📊", subtitle_placeholder)  # <-- ADDED
+    
+    typewriter_text(  # <-- ADDED
         """
         Discover trends, analyze patterns, and explore salaries across different roles, 
         experience levels, and company sizes in the data science industry.  
@@ -28,7 +44,9 @@ if st.session_state.page == "home":
         Made by __Chirag Sharma__
 
         🚀 Click below to start your journey!
-        """
+        """,
+        markdown_placeholder,
+        delay=0.01  # <-- ADDED faster for markdown
     )
     
     if st.button("👉 Start Analysis"):
