@@ -74,10 +74,9 @@ elif st.session_state.page == "analysis":
     })
 
     # Sidebar filters
-    st.expander("🔎 Filters")
     min_salary = int(df['salary_in_usd'].min())
     max_salary = int(df['salary_in_usd'].max())
-    salary_range = st.sidebar.slider("Salary Range (USD)", min_salary, max_salary, (min_salary, max_salary), step=1000)
+    salary_range = st.sidebar.slider("🔎 Filters", min_salary, max_salary, (min_salary, max_salary), step=1000)
 
     experience_options = sorted(df['experience_level'].unique().tolist())
     selected_experience = st.sidebar.multiselect("Experience Level", experience_options, default=experience_options)
