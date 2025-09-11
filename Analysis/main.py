@@ -31,33 +31,39 @@ if st.session_state.page == "home":
     title_placeholder = st.empty()
     subtitle_placeholder = st.empty()
     markdown_placeholder = st.empty()
+
+    if "typed" not in st.session_state:
+        st.session_state.typed = False
     
+    if not st.session_state.typed:
     # --- TYPEWRITER TEXT ---
-    typewriter_text("💼 Data Science Jobs Salary Analysis", title_placeholder)
-    typewriter_text("Welcome to the Salary Insights Dashboard 📊", subtitle_placeholder)
+        typewriter_text("💼 Data Science Jobs Salary Analysis", title_placeholder)
+        typewriter_text("Welcome to the Salary Insights Dashboard 📊", subtitle_placeholder)
+
+        typewriter_text(
+            """
+            Discover trends, analyze patterns, and explore salaries across different roles, 
+            experience levels, and company sizes in the data science industry.  
+
+            Made by __Chirag Sharma__
+
+            🚀 Click below to start your journey!
+            """,
+            markdown_placeholder,
+            delay=0.01 
+        )
+
+        st.session_state.typed = True
     
-    typewriter_text(
-        """
-        Discover trends, analyze patterns, and explore salaries across different roles, 
-        experience levels, and company sizes in the data science industry.  
-
-        Made by __Chirag Sharma__
-
-        🚀 Click below to start your journey!
-        """,
-        markdown_placeholder,
-        delay=0.01 
-    )
-    
-    if st.button("👉 Start Analysis"):
-        st.session_state.page = "analysis"
-        st.rerun()
-
+    if st.session_state != "analysis":
+        if st.button("👉 Start Analysis"):
+            st.session_state.page = "analysis"
+            st.rerun()
 # --- ANALYSIS PAGE ---
 elif st.session_state.page == "analysis":
     # Load dataset
     try:
-        df = pd.read_csv("Analysis/data/salaries.csv")
+        df = pd.read_csv("data/salaries.csv")
     except FileNotFoundError:
         st.error("Error: 'salaries.csv' not found in 'data' directory.")
         st.stop()
@@ -194,4 +200,5 @@ elif st.session_state.page == "analysis":
 
     if st.sidebar.button("⬅️ Back to Home"):
         st.session_state.page = "home"
+        st.session_state.typed = False
         st.rerun()
