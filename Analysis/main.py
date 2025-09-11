@@ -17,26 +17,26 @@ st.set_page_config(page_title="Data Science Salary Analysis", layout="wide")
 if "page" not in st.session_state:
     st.session_state.page = "home"  # default page
 
-# --- TYPEWRITER FUNCTION ---  # <-- ADDED
-def typewriter_text(text, placeholder, delay=0.03):  # <-- ADDED
-    typed = ""  # <-- ADDED
-    for char in text:  # <-- ADDED
-        typed += char  # <-- ADDED
-        placeholder.markdown(typed)  # <-- ADDED
-        time.sleep(delay)  # <-- ADDED
+# --- TYPEWRITER FUNCTION --- 
+def typewriter_text(text, placeholder, delay=0.03):
+    typed = ""
+    for char in text:
+        typed += char
+        placeholder.markdown(typed)
+        time.sleep(delay)
 
 # --- HOME PAGE ---
 if st.session_state.page == "home":
-    # --- PLACEHOLDERS FOR TYPEWRITER ---  # <-- ADDED
-    title_placeholder = st.empty()  # <-- ADDED
-    subtitle_placeholder = st.empty()  # <-- ADDED
-    markdown_placeholder = st.empty()  # <-- ADDED
+    # --- PLACEHOLDERS FOR TYPEWRITER ---
+    title_placeholder = st.empty()
+    subtitle_placeholder = st.empty()
+    markdown_placeholder = st.empty()
     
-    # --- TYPEWRITER TEXT ---  # <-- ADDED
-    typewriter_text("💼 Data Science Jobs Salary Analysis", title_placeholder)  # <-- ADDED
-    typewriter_text("Welcome to the Salary Insights Dashboard 📊", subtitle_placeholder)  # <-- ADDED
+    # --- TYPEWRITER TEXT ---
+    typewriter_text("💼 Data Science Jobs Salary Analysis", title_placeholder)
+    typewriter_text("Welcome to the Salary Insights Dashboard 📊", subtitle_placeholder)
     
-    typewriter_text(  # <-- ADDED
+    typewriter_text(
         """
         Discover trends, analyze patterns, and explore salaries across different roles, 
         experience levels, and company sizes in the data science industry.  
@@ -46,7 +46,7 @@ if st.session_state.page == "home":
         🚀 Click below to start your journey!
         """,
         markdown_placeholder,
-        delay=0.01  # <-- ADDED faster for markdown
+        delay=0.01 
     )
     
     if st.button("👉 Start Analysis"):
