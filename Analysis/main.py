@@ -75,7 +75,7 @@ elif st.session_state.page == "analysis":
         st.session_state.typed = False
         st.rerun()
     try:
-        df = pd.read_csv("data/salaries.csv")
+        df = pd.read_csv("Analysis/data/salaries.csv")
     except FileNotFoundError:
         st.error("Error: 'salaries.csv' not found in 'data' directory.")
         st.stop()
