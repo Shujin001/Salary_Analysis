@@ -31,27 +31,34 @@ if st.session_state.page == "home":
     title_placeholder = st.empty()
     subtitle_placeholder = st.empty()
     markdown_placeholder = st.empty()
+    name_placeholder = st.empty()
+    text_placeholder = st.empty()
+
+    # --- TYPEWRITER FUNCTION --- 
+    def typewriter_text(text, placeholder, delay=0.03, font_size=70, italic=False):
+        typed = ""
+        style = "italic" if italic else "normal"
+
+        for char in text:
+            typed += char
+            placeholder.markdown(
+                f"<h1 style='text-align:center; font-style:{style}; font-size:{font_size}px;'>{typed}</h1>",
+                unsafe_allow_html=True
+            )
+            time.sleep(delay)
+
 
     if "typed" not in st.session_state:
         st.session_state.typed = False
     
     if not st.session_state.typed:
     # --- TYPEWRITER TEXT ---
-        typewriter_text("💼 Data Science Jobs Salary Analysis", title_placeholder)
-        typewriter_text("Welcome to the Salary Insights Dashboard 📊", subtitle_placeholder)
+        typewriter_text("💼 Data Science Jobs Salary Analysis", title_placeholder, font_size=70)
+        typewriter_text("Welcome to the Salary Insights Dashboard 📊", subtitle_placeholder, font_size=35)
 
-        typewriter_text(
-            """
-            Discover trends, analyze patterns, and explore salaries across different roles, 
-            experience levels, and company sizes in the data science industry.  
-
-            Made by __Chirag Sharma__
-
-            🚀 Click below to start your journey!
-            """,
-            markdown_placeholder,
-            delay=0.01 
-        )
+        typewriter_text("Discover trends, analyze patterns, and explore salaries across different roles, experience levels, and company sizes in the data science industry.", markdown_placeholder, font_size=19, delay=0.01)
+        typewriter_text("Made by Chirag Sharma", name_placeholder, font_size=20, delay=0.01, italic=True)
+        typewriter_text("🚀 Click below to start your journey!", text_placeholder, font_size=18, delay=0.01)
 
         st.session_state.typed = True
     
@@ -62,8 +69,13 @@ if st.session_state.page == "home":
 # --- ANALYSIS PAGE ---
 elif st.session_state.page == "analysis":
     # Load dataset
+    if st.sidebar.button("⬅️ Back to Home"):
+        st.session_state.clear()
+        st.session_state.page = "home"
+        st.session_state.typed = False
+        st.rerun()
     try:
-        df = pd.read_csv("Analysis/data/salaries.csv")
+        df = pd.read_csv("data/salaries.csv")
     except FileNotFoundError:
         st.error("Error: 'salaries.csv' not found in 'data' directory.")
         st.stop()
@@ -156,49 +168,60 @@ elif st.session_state.page == "analysis":
             avg_salary_by_title.plot(kind='barh', color='seagreen', ax=ax_title)
             st.pyplot(fig_title)
 
-    with tab3:
-        st.header("🤖 Model Performance")
-
-        df_model = df_filtered.copy()
-        le = LabelEncoder()
-        for col in ['experience_level', 'employment_type', 'company_size', 'company_location', 'employee_residence', 'job_title']:
-            df_model[col] = le.fit_transform(df_model[col])
-        df_model = df_model.dropna(subset=['experience_level','employment_type','company_size','remote_ratio','salary_in_usd'])
-
-        X = df_model[['experience_level', 'employment_type', 'company_size', 'remote_ratio']]
-        y = df_model['salary_in_usd']
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
+        # 👇 wrap model training in a cached function
+    @st.cache_resource
+    def train_models(X_train, y_train):
         lr = LinearRegression()
         lr.fit(X_train, y_train)
-        y_pred_lr = lr.predict(X_test)
 
         rf = RandomForestRegressor(random_state=42)
         rf.fit(X_train, y_train)
-        y_pred_rf = rf.predict(X_test)
 
-        lr_r2 = r2_score(y_test, y_pred_lr)
-        lr_rmse = np.sqrt(mean_squared_error(y_test, y_pred_lr))
-        rf_r2 = r2_score(y_test, y_pred_rf)
-        rf_rmse = np.sqrt(mean_squared_error(y_test, y_pred_rf))
+        return lr, rf
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Linear Regression")
-            st.write(f"R² Score: **{lr_r2:.3f}**")
-            st.write(f"RMSE: **{lr_rmse:.2f}**")
-        with col2:
-            st.subheader("Random Forest")
-            st.write(f"R² Score: **{rf_r2:.3f}**")
-            st.write(f"RMSE: **{rf_rmse:.2f}**")
+    with tab3:
+        st.header("🤖 Model Performance")
+        if st.button("⚡ Run Models"):
+            df_model = df_filtered.copy()
+            le = LabelEncoder()
+            for col in ['experience_level', 'employment_type', 'company_size',
+                        'company_location', 'employee_residence', 'job_title']:
+                df_model[col] = le.fit_transform(df_model[col])
+            df_model = df_model.dropna(subset=['experience_level','employment_type',
+                                            'company_size','remote_ratio','salary_in_usd'])
 
-        st.subheader("🌟 Feature Importance (Random Forest)")
-        importance_df = pd.DataFrame({'Feature': X.columns, 'Importance': rf.feature_importances_}).sort_values(by='Importance', ascending=False)
-        fig_imp, ax_imp = plt.subplots(figsize=(6,4))
-        sns.barplot(x='Importance', y='Feature', data=importance_df, palette='magma', ax=ax_imp)
-        st.pyplot(fig_imp)
+            X = df_model[['experience_level', 'employment_type', 'company_size', 'remote_ratio']]
+            y = df_model['salary_in_usd']
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    if st.sidebar.button("⬅️ Back to Home"):
-        st.session_state.page = "home"
-        st.session_state.typed = False
-        st.rerun()
+            # 🚀 models are only trained once unless inputs change
+            lr, rf = train_models(X_train, y_train)
+
+            y_pred_lr = lr.predict(X_test)
+            y_pred_rf = rf.predict(X_test)
+
+            lr_r2 = r2_score(y_test, y_pred_lr)
+            lr_rmse = np.sqrt(mean_squared_error(y_test, y_pred_lr))
+            rf_r2 = r2_score(y_test, y_pred_rf)
+            rf_rmse = np.sqrt(mean_squared_error(y_test, y_pred_rf))
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Linear Regression")
+                st.write(f"R² Score: **{lr_r2:.3f}**")
+                st.write(f"RMSE: **{lr_rmse:.2f}**")
+            with col2:
+                st.subheader("Random Forest")
+                st.write(f"R² Score: **{rf_r2:.3f}**")
+                st.write(f"RMSE: **{rf_rmse:.2f}**")
+
+            st.subheader("🌟 Feature Importance (Random Forest)")
+            importance_df = pd.DataFrame({
+                'Feature': X.columns,
+                'Importance': rf.feature_importances_
+            }).sort_values(by='Importance', ascending=False)
+
+            fig_imp, ax_imp = plt.subplots(figsize=(6,4))
+            sns.barplot(x='Importance', y='Feature', data=importance_df, palette='magma', ax=ax_imp)
+            st.pyplot(fig_imp)
+
