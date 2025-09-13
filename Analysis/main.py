@@ -120,7 +120,7 @@ elif st.session_state.page == "analysis":
     sns.set_theme(style="whitegrid")
 
     # --- Prepare data for modeling (shared across tabs) ---
-    df_model = df_filtered.copy()
+    df_model = df.copy()
 
     # Encode categorical columns
     label_encoders = {}
