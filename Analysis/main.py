@@ -120,7 +120,7 @@ elif st.session_state.page == "analysis":
     sns.set_theme(style="whitegrid")
 
     # --- Prepare data for modeling (shared across tabs) ---
-    df_model = df.copy()
+    df_model = df_filtered.copy()
 
     # Encode categorical columns
     label_encoders = {}
@@ -243,6 +243,10 @@ elif st.session_state.page == "analysis":
                 'Feature': X.columns,
                 'Importance': rf.feature_importances_
             }).sort_values(by='Importance', ascending=False)
+            fig_imp, ax_imp = plt.subplots(figsize=(6,4))
+            sns.barplot(x='Importance', y='Feature', data=importance_df, palette='magma', ax=ax_imp)
+            ax_imp.set_title("🌟 Feature Importance (Random Forest)")
+            st.pyplot(fig_imp)
         
     with tab4:
         st.header("💡 Salary Predictor")
@@ -288,6 +292,5 @@ elif st.session_state.page == "analysis":
             'Importance': rf.feature_importances_
         }).sort_values(by='Importance', ascending=False)
 
-        fig_imp, ax_imp = plt.subplots(figsize=(6,4))
-        sns.barplot(x='Importance', y='Feature', data=importance_df, palette='magma', ax=ax_imp)
+        
         
