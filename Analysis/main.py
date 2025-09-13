@@ -70,12 +70,12 @@ if st.session_state.page == "home":
 elif st.session_state.page == "analysis":
     # Load dataset
     if st.sidebar.button("⬅️ Back to Home"):
-        st.session_state.clear()
+        #st.session_state.clear()
         st.session_state.page = "home"
         st.session_state.typed = False
         st.rerun()
     try:
-        df = pd.read_csv("Analysis/data/salaries.csv")
+        df = pd.read_csv("data/salaries.csv")
     except FileNotFoundError:
         st.error("Error: 'salaries.csv' not found in 'data' directory.")
         st.stop()
@@ -119,8 +119,31 @@ elif st.session_state.page == "analysis":
 
     sns.set_theme(style="whitegrid")
 
+    # --- Prepare data for modeling (shared across tabs) ---
+    df_model = df_filtered.copy()
+
+    # Encode categorical columns
+    label_encoders = {}
+    for col in ['experience_level', 'employment_type', 'company_size',
+                'company_location', 'employee_residence', 'job_title']:
+        le = LabelEncoder()
+        df_model[col] = le.fit_transform(df_model[col])
+        label_encoders[col] = le
+
+    # Drop rows with missing values in features/target
+    df_model = df_model.dropna(subset=['experience_level','employment_type',
+                                    'company_size','remote_ratio','salary_in_usd'])
+
+    # Features and target
+    X = df_model[['experience_level', 'employment_type', 'company_size', 'remote_ratio']]
+    y = df_model['salary_in_usd']
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
     # Tabs for sections
-    tab1, tab2, tab3 = st.tabs(["🗒️ Dataset & Info", "📈 Visual Analysis", "🤖 ML Models"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🗒️ Dataset & Info", "📈 Visual Analysis", "🤖 ML Models", "💰 Salary Predictor"])
 
     with tab1:
         st.header("📋 Dataset Overview")
@@ -169,16 +192,16 @@ elif st.session_state.page == "analysis":
             st.pyplot(fig_title)
 
         # 👇 wrap model training in a cached function
-    @st.cache_resource
-    def train_models(X_train, y_train):
-        lr = LinearRegression()
-        lr.fit(X_train, y_train)
 
-        rf = RandomForestRegressor(random_state=42)
-        rf.fit(X_train, y_train)
+        @st.cache_resource
+        def train_models(X_train, y_train):
+            lr = LinearRegression()
+            lr.fit(X_train, y_train)
 
-        return lr, rf
+            rf = RandomForestRegressor(random_state=42)
+            rf.fit(X_train, y_train)
 
+            return lr, rf
     with tab3:
         st.header("🤖 Model Performance")
         if st.button("⚡ Run Models"):
@@ -220,8 +243,51 @@ elif st.session_state.page == "analysis":
                 'Feature': X.columns,
                 'Importance': rf.feature_importances_
             }).sort_values(by='Importance', ascending=False)
+        
+    with tab4:
+        st.header("💡 Salary Predictor")
 
-            fig_imp, ax_imp = plt.subplots(figsize=(6,4))
-            sns.barplot(x='Importance', y='Feature', data=importance_df, palette='magma', ax=ax_imp)
-            st.pyplot(fig_imp)
+        # --- User inputs ---
+        exp_input = st.selectbox("Experience Level", df['experience_level'].unique())
+        emp_input = st.selectbox("Employment Type", df['employment_type'].unique())
+        comp_input = st.selectbox("Company Size", df['company_size'].unique())
+        remote_input = st.slider("Remote Ratio", 0, 100, 50)
 
+        # --- Prepare input for the model ---
+        input_df = pd.DataFrame([{
+            "experience_level": label_encoders['experience_level'].transform([exp_input])[0],
+            "employment_type": label_encoders['employment_type'].transform([emp_input])[0],
+            "company_size": label_encoders['company_size'].transform([comp_input])[0],
+            "remote_ratio": remote_input
+        }])
+
+        # --- Train or load cached models ---
+        @st.cache_resource
+        def get_trained_models(X_train, y_train):
+            lr_model = LinearRegression()
+            lr_model.fit(X_train, y_train)
+
+            rf_model = RandomForestRegressor(random_state=42)
+            rf_model.fit(X_train, y_train)
+
+            return lr_model, rf_model
+
+        # Get trained models (runs only once due to caching)
+        lr, rf = get_trained_models(X_train, y_train)
+
+        # --- Predict salary ---
+        pred_salary_lr = lr.predict(input_df)[0]
+        pred_salary_rf = rf.predict(input_df)[0]
+
+        st.success(f"💰 Predicted Salary (Random Forest): **${pred_salary_rf:,.2f} USD**")
+        st.info(f"Predicted Salary (Linear Regression): ${pred_salary_lr:,.2f} USD")
+
+        # --- Feature importance plot ---
+        importance_df = pd.DataFrame({
+            'Feature': X_train.columns,
+            'Importance': rf.feature_importances_
+        }).sort_values(by='Importance', ascending=False)
+
+        fig_imp, ax_imp = plt.subplots(figsize=(6,4))
+        sns.barplot(x='Importance', y='Feature', data=importance_df, palette='magma', ax=ax_imp)
+        
